@@ -122,7 +122,7 @@
     </div>
 </nav>
 
-<div class="content-container">
+<div class="content-container container">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>

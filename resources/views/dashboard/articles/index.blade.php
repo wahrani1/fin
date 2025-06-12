@@ -1,5 +1,5 @@
 @extends('layouts.dashboard')
-@section('title', 'Articles08', 'Articles')
+@section('title', 'Articles', 'Articles')
 @section('breadcrumb')
     <li class="breadcrumb-item active">Articles</li>
 @endsection

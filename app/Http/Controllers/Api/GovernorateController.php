@@ -18,9 +18,11 @@ class GovernorateController extends Controller
     public function index()
     {
         try {
-            $governorates = Governorate::with('articles')->get();
+            // Load governorates with articles and their images
+            $governorates = Governorate::with(['articles.images'])->get();
             return $this->successResponse($governorates, 'Governorates retrieved successfully');
         } catch (\Exception $e) {
+            \Log::error('Governorate index error: ' . $e->getMessage());
             return $this->errorResponse('Failed to retrieve governorates', 500);
         }
     }
@@ -34,9 +36,11 @@ class GovernorateController extends Controller
     public function show($id)
     {
         try {
-            $governorate = Governorate::with('articles')->findOrFail($id);
+            // Load governorate with articles and their images
+            $governorate = Governorate::with(['articles.images'])->findOrFail($id);
             return $this->successResponse($governorate, 'Governorate retrieved successfully');
         } catch (\Exception $e) {
+            \Log::error('Governorate show error: ' . $e->getMessage());
             return $this->errorResponse('Governorate not found', 404);
         }
     }
