@@ -63,15 +63,15 @@ class ReportController extends Controller
     {
         return Governorate::select('id', 'name', 'visit_count')
             ->withCount(['articles'])
-            ->with(['articles' => function($query) {
+            ->with(['articles' => function ($query) {
                 $query->select('governorate_id', 'category')
-                    ->with(['ratings' => function($rq) {
+                    ->with(['ratings' => function ($rq) {
                         $rq->where('is_approved', true);
                     }]);
             }])
             ->orderBy('articles_count', 'desc')
             ->get()
-            ->map(function($governorate) {
+            ->map(function ($governorate) {
                 $avgRating = $governorate->articles->flatMap->ratings->avg('rating');
                 $categories = $governorate->articles->pluck('category')->unique()->values();
 
@@ -94,16 +94,16 @@ class ReportController extends Controller
     {
         $categories = Article::select('category')
             ->selectRaw('COUNT(*) as count')
-            ->with(['ratings' => function($query) {
+            ->with(['ratings' => function ($query) {
                 $query->where('is_approved', true);
             }])
             ->groupBy('category')
             ->orderBy('count', 'desc')
             ->get()
-            ->map(function($item) {
+            ->map(function ($item) {
                 // Get average rating for this category
                 $avgRating = Article::where('category', $item->category)
-                    ->with(['ratings' => function($q) {
+                    ->with(['ratings' => function ($q) {
                         $q->where('is_approved', true);
                     }])
                     ->get()
@@ -218,14 +218,14 @@ class ReportController extends Controller
                 ->with('governorate:id,name', 'era:id,name')
                 ->orderBy('ratings_count', 'desc')
                 ->first(),
-            'highest_rated_article' => Article::with(['ratings' => function($q) {
+            'highest_rated_article' => Article::with(['ratings' => function ($q) {
                 $q->where('is_approved', true);
             }])
                 ->get()
-                ->filter(function($article) {
+                ->filter(function ($article) {
                     return $article->ratings->count() >= 5; // At least 5 ratings
                 })
-                ->sortByDesc(function($article) {
+                ->sortByDesc(function ($article) {
                     return $article->ratings->avg('rating');
                 })
                 ->first(),
@@ -239,61 +239,77 @@ class ReportController extends Controller
     }
 
     /**
-     * 📊 Detailed Geographic Report
+     * 📊 Detailed Geographic Report - FIXED VERSION
      */
     public function geographicAnalysis()
     {
         $geographic_data = Governorate::select('id', 'name', 'brief', 'description', 'visit_count')
             ->withCount('articles')
-            ->with(['articles.ratings' => function($query) {
+            ->with(['articles.ratings' => function ($query) {
                 $query->where('is_approved', true);
+            }, 'articles' => function ($query) {
+                $query->select('id', 'governorate_id', 'category');
             }])
             ->get()
-            ->map(function($governorate) {
+            ->map(function ($governorate) {
                 $articles = $governorate->articles;
                 $allRatings = $articles->flatMap->ratings;
+                $avgRating = $allRatings->avg('rating') ?? 0;
 
                 return [
-                    'governorate' => $governorate->name,
+                    'name' => $governorate->name, // Changed from 'governorate' to 'name'
                     'heritage_sites' => $governorate->articles_count,
                     'visit_count' => $governorate->visit_count,
-                    'avg_rating' => $allRatings->avg('rating'),
+                    'avg_rating' => round($avgRating, 2),
                     'total_ratings' => $allRatings->count(),
+                    'heritage_types' => $articles->pluck('category')->unique()->count(), // Added this
                     'category_diversity' => $articles->pluck('category')->unique()->count(),
+                    'dominant_category' => $articles->groupBy('category')->sortByDesc->count()->keys()->first() ?? 'N/A',
                     'dominant_categories' => $articles->groupBy('category')->map->count()->sortDesc()->take(3),
-                    'tourism_score' => $this->calculateTourismScore($governorate),
-                    'brief' => $governorate->brief
+                    'tourism_potential' => $this->calculateTourismScore($governorate, $avgRating), // Added this key!
+                    'tourism_score' => $this->calculateTourismScore($governorate, $avgRating),
+                    'brief' => $governorate->brief ?? 'No description available'
                 ];
             })
-            ->sortByDesc('tourism_score');
+            ->sortByDesc('tourism_potential');
 
         return view('dashboard.reports.geographic-analysis', compact('geographic_data'));
     }
 
     /**
-     * ⏰ Historical Timeline Report
+     * ⏰ Historical Timeline Report - FIXED VERSION
      */
-    public function historicalTimeline()
+    public function timelineReport()
     {
         $timeline_data = Era::withCount('articles')
-            ->with(['articles' => function($query) {
+            ->with(['articles' => function ($query) {
                 $query->select('era_id', 'category', 'governorate_id')
                     ->with('governorate:id,name');
             }])
             ->orderBy('articles_count', 'desc')
             ->get()
-            ->map(function($era) {
+            ->map(function ($era) {
                 $articles = $era->articles;
+                $categoryBreakdown = $articles->groupBy('category')->map->count()->toArray();
+
                 return [
                     'era_name' => $era->name,
                     'total_sites' => $era->articles_count,
-                    'categories' => $articles->groupBy('category')->map->count(),
-                    'geographic_spread' => $articles->pluck('governorate.name')->unique()->values(),
-                    'heritage_density' => $era->articles_count > 0 ? round($era->articles_count / Era::sum('articles_count') * 100, 1) : 0
+                    'heritage_variety' => count($categoryBreakdown), // Number of different categories
+                    'category_breakdown' => $categoryBreakdown, // Array of category => count
+                    'categories' => $categoryBreakdown, // Alternative key for compatibility
+                    'geographic_spread' => $articles->pluck('governorate.name')->filter()->unique()->values()->toArray(),
+                    'heritage_density' => $era->articles_count > 0 ? round($era->articles_count / max(Article::count(), 1) * 100, 1) : 0
                 ];
             });
 
         return view('dashboard.reports.historical-timeline', compact('timeline_data'));
+    }
+
+    // Alias for backward compatibility
+    public function historicalTimeline()
+    {
+        return $this->timelineReport();
     }
 
     /**
@@ -311,11 +327,16 @@ class ReportController extends Controller
         return round(array_sum($metrics) / count($metrics), 1);
     }
 
-    private function calculateTourismScore($governorate)
+    // FIXED: Updated calculateTourismScore to handle both single and double parameters
+    private function calculateTourismScore($governorate, $avgRating = null)
     {
         $articlesCount = $governorate->articles_count ?? 0;
         $visitCount = $governorate->visit_count ?? 0;
-        $avgRating = $governorate->articles->flatMap->ratings->avg('rating') ?? 0;
+
+        // Use provided avgRating or calculate it from the governorate
+        if ($avgRating === null) {
+            $avgRating = $governorate->articles->flatMap->ratings->avg('rating') ?? 0;
+        }
 
         // Weighted scoring: articles (30%), visits (40%), rating (30%)
         return round(($articlesCount * 0.3) + ($visitCount * 0.0004) + ($avgRating * 20 * 0.3), 2);
@@ -340,7 +361,7 @@ class ReportController extends Controller
 
     private function getActiveUsersCount()
     {
-        return User::where(function($query) {
+        return User::where(function ($query) {
             $query->whereHas('articles')
                 ->orWhereHas('articleComments')
                 ->orWhereHas('communityPosts');
@@ -410,6 +431,31 @@ class ReportController extends Controller
     }
 
     /**
+     * FIXED: Updated getGeographicDistribution method
+     */
+    private function getGeographicDistribution()
+    {
+        return Governorate::select('name', 'visit_count')
+            ->withCount('articles')
+            ->with(['articles.ratings' => function ($query) {
+                $query->where('is_approved', true);
+            }])
+            ->orderBy('articles_count', 'desc')
+            ->take(10)
+            ->get()
+            ->map(function ($governorate) {
+                $avgRating = $governorate->articles->flatMap->ratings->avg('rating') ?? 0;
+                return [
+                    'name' => $governorate->name,
+                    'articles_count' => $governorate->articles_count,
+                    'visit_count' => $governorate->visit_count,
+                    'avg_rating' => round($avgRating, 2),
+                    'tourism_potential' => $this->calculateTourismScore($governorate, $avgRating) // Fixed: passing avgRating
+                ];
+            });
+    }
+
+    /**
      * 📄 Export Reports
      */
     public function exportHeritageDashboard()
@@ -417,5 +463,242 @@ class ReportController extends Controller
         // Implementation for PDF export
         $data = $this->heritageDashboard();
         // Return PDF using DomPDF or similar
+    }
+
+
+
+
+// Add these missing methods to your ReportController class
+
+    /**
+     * 👥 Research Community Report
+     */
+    public function researchCommunityReport()
+    {
+        $community_data = [
+            'user_distribution' => User::selectRaw('type, COUNT(*) as count')
+                ->groupBy('type')
+                ->get(),
+            'top_contributors' => User::select('id', 'name', 'type', 'created_at')
+                ->withCount(['articles', 'articleComments', 'communityPosts'])
+                ->orderBy('articles_count', 'desc')
+                ->take(15)
+                ->get(),
+            'certification_stats' => $this->getCertificationStats(),
+            'researcher_productivity' => $this->getResearcherProductivity()
+        ];
+
+        return view('dashboard.reports.research-community', compact('community_data'));
+    }
+
+    /**
+     * ⭐ Content Quality Report
+     */
+    public function contentQualityReport()
+    {
+        $quality_data = [
+            'articles_with_images' => Article::whereHas('images')->count(),
+            'articles_without_images' => Article::whereDoesntHave('images')->count(),
+            'average_rating' => ArticleRating::where('is_approved', true)->avg('rating'),
+            'rating_distribution' => ArticleRating::selectRaw('rating, COUNT(*) as count')
+                ->where('is_approved', true)
+                ->groupBy('rating')
+                ->orderBy('rating')
+                ->get(),
+            'moderation_stats' => $this->getModerationStats(),
+            'content_completeness' => $this->getContentCompleteness()
+        ];
+
+        return view('dashboard.reports.content-quality', compact('quality_data'));
+    }
+
+    /**
+     * 🏖️ Tourism Potential Report
+     */
+    public function tourismPotentialReport()
+    {
+        $tourism_data = Governorate::select('id', 'name', 'visit_count', 'brief')
+            ->withCount('articles')
+            ->with(['articles.ratings' => function ($query) {
+                $query->where('is_approved', true);
+            }])
+            ->get()
+            ->map(function ($governorate) {
+                $avgRating = $governorate->articles->flatMap->ratings->avg('rating');
+                return [
+                    'governorate' => $governorate->name,
+                    'heritage_sites' => $governorate->articles_count,
+                    'visit_count' => $governorate->visit_count,
+                    'average_rating' => round($avgRating ?? 0, 2),
+                    'tourism_score' => $this->calculateTourismScore($governorate, $avgRating),
+                    'brief' => $governorate->brief
+                ];
+            })
+            ->sortByDesc('tourism_score');
+
+        return view('dashboard.reports.tourism-potential', compact('tourism_data'));
+    }
+
+    /**
+     * 📈 Platform Growth Report
+     */
+    public function growthReport()
+    {
+        $growth_data = [
+            'monthly_user_registration' => $this->getMonthlyUserRegistration(),
+            'monthly_content_creation' => $this->getMonthlyContentCreation(),
+            'engagement_trends' => $this->getEngagementTrends(),
+            'platform_health' => $this->getPlatformHealthMetrics()
+        ];
+
+        return view('dashboard.reports.growth', compact('growth_data'));
+    }
+
+    /**
+     * 📄 Export functionality
+     */
+    public function exportReport(Request $request, $reportType)
+    {
+        // Implementation for PDF/Excel export
+        // You can use libraries like DomPDF or Laravel Excel
+        switch ($reportType) {
+            case 'heritage-overview':
+                return $this->exportHeritageOverview();
+            case 'geographic':
+                return $this->exportGeographicReport();
+            case 'research-community':
+                return $this->exportResearchCommunityReport();
+            default:
+                return redirect()->back()->with('error', 'Invalid report type');
+        }
+    }
+
+    /**
+     * Helper methods for the new reports
+     */
+    private function getCertificationStats()
+    {
+        return [
+            'pending' => CertifiedResearcher::where('status', 'pending')->count(),
+            'accepted' => CertifiedResearcher::where('status', 'accepted')->count(),
+            'rejected' => CertifiedResearcher::where('status', 'rejected')->count(),
+            'popular_majors' => CertifiedResearcher::selectRaw('major, COUNT(*) as count')
+                ->groupBy('major')
+                ->orderBy('count', 'desc')
+                ->take(5)
+                ->get()
+        ];
+    }
+
+    private function getResearcherProductivity()
+    {
+        return User::where('type', 'researcher')
+            ->withCount(['articles', 'articleComments'])
+            ->orderBy('articles_count', 'desc')
+            ->take(10)
+            ->get();
+    }
+
+    private function getModerationStats()
+    {
+        return [
+            'comments_pending' => ArticleComment::where('is_approved', false)->count(),
+            'comments_approved' => ArticleComment::where('is_approved', true)->count(),
+            'ratings_pending' => ArticleRating::where('is_approved', false)->count(),
+            'ratings_approved' => ArticleRating::where('is_approved', true)->count()
+        ];
+    }
+
+    private function getContentCompleteness()
+    {
+        $totalArticles = Article::count();
+        $articlesWithImages = Article::whereHas('images')->count();
+        $articlesWithRatings = Article::whereHas('ratings')->count();
+        $articlesWithComments = Article::whereHas('comments')->count();
+
+        return [
+            'image_coverage' => $totalArticles > 0 ? round(($articlesWithImages / $totalArticles) * 100, 1) : 0,
+            'rating_coverage' => $totalArticles > 0 ? round(($articlesWithRatings / $totalArticles) * 100, 1) : 0,
+            'comment_coverage' => $totalArticles > 0 ? round(($articlesWithComments / $totalArticles) * 100, 1) : 0
+        ];
+    }
+
+    private function getMonthlyUserRegistration()
+    {
+        return User::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count')
+            ->groupBy('month')
+            ->orderBy('month')
+            ->take(12)
+            ->get();
+    }
+
+    private function getMonthlyContentCreation()
+    {
+        return Article::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count')
+            ->groupBy('month')
+            ->orderBy('month')
+            ->take(12)
+            ->get();
+    }
+
+    private function getEngagementTrends()
+    {
+        return [
+            'comments_trend' => ArticleComment::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count')
+                ->groupBy('month')
+                ->orderBy('month')
+                ->take(6)
+                ->get(),
+            'ratings_trend' => ArticleRating::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count')
+                ->groupBy('month')
+                ->orderBy('month')
+                ->take(6)
+                ->get()
+        ];
+    }
+
+    private function getPlatformHealthMetrics()
+    {
+        return [
+            'active_users_ratio' => $this->calculateActiveUsersRatio(),
+            'content_quality_score' => $this->calculateContentQualityScore(),
+            'moderation_efficiency' => $this->calculateModerationEfficiency()
+        ];
+    }
+
+    private function calculateActiveUsersRatio()
+    {
+        $totalUsers = User::count();
+        $activeUsers = User::where(function ($query) {
+            $query->whereHas('articles')
+                ->orWhereHas('articleComments')
+                ->orWhereHas('communityPosts');
+        })->count();
+
+        return $totalUsers > 0 ? round(($activeUsers / $totalUsers) * 100, 1) : 0;
+    }
+
+    private function calculateContentQualityScore()
+    {
+        $avgRating = ArticleRating::where('is_approved', true)->avg('rating');
+        $imageCompletion = $this->getContentCompletenessScore();
+
+        return round((($avgRating ?? 0) * 20 + $imageCompletion) / 2, 1);
+    }
+
+// Placeholder export methods (you can implement these later)
+    private function exportHeritageOverview()
+    {
+        return response()->download('heritage-overview.pdf');
+    }
+
+    private function exportGeographicReport()
+    {
+        return response()->download('geographic-report.pdf');
+    }
+
+    private function exportResearchCommunityReport()
+    {
+        return response()->download('research-community.pdf');
     }
 }

@@ -1,7 +1,6 @@
 @extends('layouts.dashboard')
 
 @section('title', 'Geographic Analysis')
-
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('reports.dashboard') }}">Heritage Reports</a></li>
     <li class="breadcrumb-item active">Geographic Analysis</li>
@@ -90,26 +89,12 @@
             border: 1px solid #b2f5ea;
         }
 
-        .map-container {
-            background: linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%);
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-
         .summary-stats {
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             padding: 2rem;
             margin-bottom: 2rem;
-        }
-
-        .progress-ring {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 1rem;
         }
 
         @media (max-width: 768px) {
@@ -234,18 +219,18 @@
 
     <!-- Detailed Governorate Cards -->
     <div class="row">
-        @foreach($geographic_data->sortByDesc('tourism_potential')->take(12) as $governorate)
+        @forelse($geographic_data->sortByDesc('tourism_potential')->take(12) as $governorate)
             <div class="col-lg-6 col-xl-4">
                 <div class="governorate-card">
                     <div class="governorate-header">
                         <div class="tourism-score
-                    @if($governorate['tourism_potential'] >= 70) score-high
-                    @elseif($governorate['tourism_potential'] >= 40) score-medium
-                    @else score-low
-                    @endif">
-                            {{ number_format($governorate['tourism_potential'], 1) }}
+                            @if(($governorate['tourism_potential'] ?? 0) >= 70) score-high
+                            @elseif(($governorate['tourism_potential'] ?? 0) >= 40) score-medium
+                            @else score-low
+                            @endif">
+                            {{ number_format($governorate['tourism_potential'] ?? 0, 1) }}
                         </div>
-                        <h5 class="mb-1">{{ $governorate['name'] }}</h5>
+                        <h5 class="mb-1">{{ $governorate['name'] ?? 'Unknown' }}</h5>
                         <small class="opacity-75">Tourism Potential Score</small>
                     </div>
 
@@ -253,7 +238,13 @@
                         <div class="row mb-3">
                             <div class="col-6">
                                 <div class="text-center">
-                                    <h4 class="text-warning mb-0">{{ number_format($governorate['avg_rating'], 1) }}</h4>
+                                    <h4 class="text-primary mb-0">{{ $governorate['heritage_sites'] ?? 0 }}</h4>
+                                    <small class="text-muted">Heritage Sites</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h4 class="text-warning mb-0">{{ number_format($governorate['avg_rating'] ?? 0, 1) }}</h4>
                                     <small class="text-muted">Avg Rating</small>
                                 </div>
                             </div>
@@ -262,19 +253,19 @@
                         <div class="row mb-3">
                             <div class="col-6">
                                 <div class="text-center">
-                                    <h6 class="text-info mb-0">{{ number_format($governorate['visit_count']) }}</h6>
+                                    <h6 class="text-info mb-0">{{ number_format($governorate['visit_count'] ?? 0) }}</h6>
                                     <small class="text-muted">Total Visits</small>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="text-center">
-                                    <h6 class="text-success mb-0">{{ $governorate['heritage_types'] }}</h6>
+                                    <h6 class="text-success mb-0">{{ $governorate['heritage_types'] ?? 0 }}</h6>
                                     <small class="text-muted">Heritage Types</small>
                                 </div>
                             </div>
                         </div>
 
-                        @if($governorate['dominant_category'])
+                        @if(isset($governorate['dominant_category']) && $governorate['dominant_category'] !== 'N/A')
                             <div class="mb-2">
                                 <small class="text-muted">Dominant Category:</small>
                                 <span class="category-badge">{{ $governorate['dominant_category'] }}</span>
@@ -285,25 +276,32 @@
                         <div class="mt-3">
                             <div class="d-flex justify-content-between mb-1">
                                 <small class="text-muted">Tourism Development</small>
-                                <small class="text-muted">{{ number_format($governorate['tourism_potential'], 1) }}%</small>
+                                <small class="text-muted">{{ number_format($governorate['tourism_potential'] ?? 0, 1) }}%</small>
                             </div>
                             <div class="progress" style="height: 6px;">
                                 <div class="progress-bar
-                            @if($governorate['tourism_potential'] >= 70) bg-success
-                            @elseif($governorate['tourism_potential'] >= 40) bg-warning
-                            @else bg-danger
-                            @endif"
-                                     style="width: {{ min($governorate['tourism_potential'], 100) }}%">
+                                    @if(($governorate['tourism_potential'] ?? 0) >= 70) bg-success
+                                    @elseif(($governorate['tourism_potential'] ?? 0) >= 40) bg-warning
+                                    @else bg-danger
+                                    @endif"
+                                     style="width: {{ min($governorate['tourism_potential'] ?? 0, 100) }}%">
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        @endforeach
+        @empty
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No geographic data available. Please ensure you have governorates and articles in your database.
+                </div>
+            </div>
+        @endforelse
     </div>
 
-    <!-- Insights Section -->
+    <!-- Key Insights & Recommendations -->
     <div class="row mt-4">
         <div class="col-12">
             <div class="governorate-card">
@@ -320,7 +318,9 @@
                                 <h6 class="text-success">High Potential Areas</h6>
                                 <p class="mb-0 small text-muted">
                                     @php
-                                        $highPotential = $geographic_data->where('tourism_potential', '>=', 70);
+                                        $highPotential = $geographic_data->filter(function($item) {
+                                            return ($item['tourism_potential'] ?? 0) >= 70;
+                                        });
                                     @endphp
                                     {{ $highPotential->count() }} governorates show excellent tourism potential with
                                     high heritage site density and visitor engagement.
@@ -332,7 +332,10 @@
                                 <h6 class="text-warning">Development Opportunities</h6>
                                 <p class="mb-0 small text-muted">
                                     @php
-                                        $mediumPotential = $geographic_data->whereBetween('tourism_potential', [40, 69]);
+                                        $mediumPotential = $geographic_data->filter(function($item) {
+                                            $potential = $item['tourism_potential'] ?? 0;
+                                            return $potential >= 40 && $potential < 70;
+                                        });
                                     @endphp
                                     {{ $mediumPotential->count() }} governorates have moderate potential and could
                                     benefit from increased heritage documentation and promotion.
@@ -344,7 +347,9 @@
                                 <h6 class="text-info">Coverage Gaps</h6>
                                 <p class="mb-0 small text-muted">
                                     @php
-                                        $uncovered = $geographic_data->where('heritage_sites', 0);
+                                        $uncovered = $geographic_data->filter(function($item) {
+                                            return ($item['heritage_sites'] ?? 0) == 0;
+                                        });
                                     @endphp
                                     {{ $uncovered->count() }} governorates need initial heritage site documentation
                                     to establish baseline coverage.
@@ -389,15 +394,17 @@
                     labels: geographicData.slice(0, 15).map(item => item.name),
                     datasets: [{
                         label: 'Tourism Potential Score',
-                        data: geographicData.slice(0, 15).map(item => item.tourism_potential),
+                        data: geographicData.slice(0, 15).map(item => item.tourism_potential || 0),
                         backgroundColor: geographicData.slice(0, 15).map(item => {
-                            if (item.tourism_potential >= 70) return 'rgba(56, 161, 105, 0.8)';
-                            if (item.tourism_potential >= 40) return 'rgba(237, 137, 54, 0.8)';
+                            const potential = item.tourism_potential || 0;
+                            if (potential >= 70) return 'rgba(56, 161, 105, 0.8)';
+                            if (potential >= 40) return 'rgba(237, 137, 54, 0.8)';
                             return 'rgba(229, 62, 62, 0.8)';
                         }),
                         borderColor: geographicData.slice(0, 15).map(item => {
-                            if (item.tourism_potential >= 70) return '#38a169';
-                            if (item.tourism_potential >= 40) return '#ed8936';
+                            const potential = item.tourism_potential || 0;
+                            if (potential >= 70) return '#38a169';
+                            if (potential >= 40) return '#ed8936';
                             return '#e53e3e';
                         }),
                         borderWidth: 1,
@@ -414,9 +421,9 @@
                                 afterLabel: function(context) {
                                     const data = geographicData[context.dataIndex];
                                     return [
-                                        `Heritage Sites: ${data.heritage_sites}`,
-                                        `Avg Rating: ${data.avg_rating.toFixed(1)}`,
-                                        `Visits: ${data.visit_count.toLocaleString()}`
+                                        `Heritage Sites: ${data.heritage_sites || 0}`,
+                                        `Avg Rating: ${(data.avg_rating || 0).toFixed(1)}`,
+                                        `Visits: ${(data.visit_count || 0).toLocaleString()}`
                                     ];
                                 }
                             }
@@ -443,14 +450,14 @@
 
             // Sites Distribution Chart
             const sitesCtx = document.getElementById('sitesDistributionChart').getContext('2d');
-            const sitesData = geographicData.filter(item => item.heritage_sites > 0).slice(0, 10);
+            const sitesData = geographicData.filter(item => (item.heritage_sites || 0) > 0).slice(0, 10);
 
             new Chart(sitesCtx, {
                 type: 'doughnut',
                 data: {
                     labels: sitesData.map(item => item.name),
                     datasets: [{
-                        data: sitesData.map(item => item.heritage_sites),
+                        data: sitesData.map(item => item.heritage_sites || 0),
                         backgroundColor: [
                             '#2c5282', '#b7791f', '#38a169', '#ed8936', '#e53e3e',
                             '#805ad5', '#3182ce', '#d69e2e', '#48bb78', '#fc8181'
@@ -477,7 +484,7 @@
 
             // Quality vs Quantity Scatter Chart
             const qualityCtx = document.getElementById('qualityQuantityChart').getContext('2d');
-            const qualityData = geographicData.filter(item => item.heritage_sites > 0 && item.avg_rating > 0);
+            const qualityData = geographicData.filter(item => (item.heritage_sites || 0) > 0 && (item.avg_rating || 0) > 0);
 
             new Chart(qualityCtx, {
                 type: 'scatter',
@@ -485,8 +492,8 @@
                     datasets: [{
                         label: 'Governorates',
                         data: qualityData.map(item => ({
-                            x: item.heritage_sites,
-                            y: item.avg_rating,
+                            x: item.heritage_sites || 0,
+                            y: item.avg_rating || 0,
                             label: item.name
                         })),
                         backgroundColor: 'rgba(44, 82, 130, 0.6)',
@@ -494,11 +501,11 @@
                         borderWidth: 2,
                         pointRadius: function(context) {
                             const value = qualityData[context.dataIndex];
-                            return Math.max(5, Math.min(15, value.visit_count / 1000));
+                            return Math.max(5, Math.min(15, (value.visit_count || 0) / 1000));
                         },
                         pointHoverRadius: function(context) {
                             const value = qualityData[context.dataIndex];
-                            return Math.max(7, Math.min(20, value.visit_count / 800));
+                            return Math.max(7, Math.min(20, (value.visit_count || 0) / 800));
                         }
                     }]
                 },
@@ -515,10 +522,10 @@
                                 label: function(context) {
                                     const data = qualityData[context.dataIndex];
                                     return [
-                                        `Heritage Sites: ${data.heritage_sites}`,
-                                        `Average Rating: ${data.avg_rating.toFixed(1)}`,
-                                        `Total Visits: ${data.visit_count.toLocaleString()}`,
-                                        `Tourism Score: ${data.tourism_potential.toFixed(1)}%`
+                                        `Heritage Sites: ${data.heritage_sites || 0}`,
+                                        `Average Rating: ${(data.avg_rating || 0).toFixed(1)}`,
+                                        `Total Visits: ${(data.visit_count || 0).toLocaleString()}`,
+                                        `Tourism Score: ${(data.tourism_potential || 0).toFixed(1)}%`
                                     ];
                                 }
                             }
@@ -545,10 +552,4 @@
             });
         });
     </script>
-@endsection">
-<h4 class="text-primary mb-0">{{ $governorate['heritage_sites'] }}</h4>
-<small class="text-muted">Heritage Sites</small>
-</div>
-</div>
-<div class="col-6">
-    <div class="text-center
+@endsection
