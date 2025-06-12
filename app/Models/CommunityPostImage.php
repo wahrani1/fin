@@ -16,4 +16,3 @@ class CommunityPostImage extends Model
         return $this->belongsTo(CommunityPost::class, 'community_post_id');
     }
 }
-?>

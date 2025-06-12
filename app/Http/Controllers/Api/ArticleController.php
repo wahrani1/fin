@@ -66,4 +66,3 @@ class ArticleController extends Controller
         return response()->json(['message' => 'Rating submitted for approval'], 201);
     }
 }
-?>

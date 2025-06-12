@@ -22,9 +22,6 @@ class User extends Authenticatable
         'type' => 'string',
     ];
 
-    // Remove this line - it's causing issues
-    // private mixed $type;
-
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class);

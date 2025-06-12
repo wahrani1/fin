@@ -55,4 +55,3 @@ class Article extends Model
         ];
     }
 }
-?>
