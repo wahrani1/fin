@@ -72,6 +72,7 @@
                 padding: 8px 10px;
             }
         }
+
     </style>
 </head>
 <body>
