@@ -173,7 +173,7 @@ class SearchController extends Controller
             // Load articles count
             $query->withCount('articles');
 
-            // 🔍 TEXT SEARCH
+            //  TEXT SEARCH
             if ($request->filled('search')) {
                 $searchTerm = $request->search;
                 $query->where(function($q) use ($searchTerm) {
@@ -183,7 +183,7 @@ class SearchController extends Controller
                 });
             }
 
-            // 📊 FILTER BY ARTICLE COUNT
+            //  FILTER BY ARTICLE COUNT
             if ($request->filled('min_articles')) {
                 $query->having('articles_count', '>=', $request->min_articles);
             }
@@ -196,7 +196,7 @@ class SearchController extends Controller
                 }
             }
 
-            // 👀 FILTER BY VISIT COUNT
+            //  FILTER BY VISIT COUNT
             if ($request->filled('min_visits')) {
                 $query->where('visit_count', '>=', $request->min_visits);
             }

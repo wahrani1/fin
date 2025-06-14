@@ -68,11 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('apply', [CertifiedResearcherController::class, 'apply']);
         Route::get('status', [CertifiedResearcherController::class, 'status']);
     });
-//  governorate routes
-    Route::prefix('governorates')->group(function () {
-        Route::get('/', [GovernorateController::class, 'index']);
-        Route::get('{id}', [GovernorateController::class, 'show']);
-    });
+
     // Admin-only routes
     Route::middleware('role:admin')->group(function () {
         Route::prefix('admin')->group(function () {
