@@ -44,8 +44,8 @@ class GovernorateController extends Controller
             // Increment visit count atomically to avoid race conditions
             $governorate->increment('visit_count');
 
-            // Refresh the model to get the updated visit_count
-            $governorate->refresh();
+            // Update the model's visit_count attribute manually instead of refresh()
+            $governorate->visit_count = $governorate->visit_count + 1;
 
             return $this->successResponse($governorate, 'Governorate retrieved successfully');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -56,7 +56,6 @@ class GovernorateController extends Controller
             return $this->errorResponse('Failed to retrieve governorate', 500);
         }
     }
-
     /**
      * Alternative implementation with more advanced visit tracking
      * Uncomment this if you want to prevent multiple counts from same user
