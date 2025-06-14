@@ -99,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Governorate search and filtering
         Route::get('/governorates', [SearchController::class, 'searchGovernorates']);
+        Route::get('/community-posts', [SearchController::class, 'searchCommunityPosts']);
     });
 
     // Enhanced governorate routes with articles pagination
