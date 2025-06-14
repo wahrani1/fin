@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ContactUsController;
 use App\Http\Controllers\Api\CertifiedResearcherController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\SearchController;
 
 // Public routes
 Route::prefix('auth')->group(function () {
@@ -20,6 +21,18 @@ Route::prefix('auth')->group(function () {
 Route::post('contact-us', [ContactUsController::class, 'store'])
     ->middleware('throttle:3,1'); // 3 requests per minute
 
+
+// PUBLIC SEARCH ROUTES (no authentication required)
+Route::prefix('search')->group(function () {
+    // Global search across all content types
+    Route::get('/', [SearchController::class, 'globalSearch']);
+
+    // Get filter options for frontend dropdowns
+    Route::get('/filters', [SearchController::class, 'getFilterOptions']);
+
+    // Get trending/popular content
+    Route::get('/trending', [SearchController::class, 'getTrending']);
+});
 
 
 // Authenticated routes
@@ -78,6 +91,23 @@ Route::middleware('auth:sanctum')->group(function () {
             });
         });
     });
+// AUTHENTICATED SEARCH ROUTES
+
+    Route::prefix('search')->group(function () {
+        // Advanced article search with all filters
+        Route::get('/articles', [SearchController::class, 'searchArticles']);
+
+        // Governorate search and filtering
+        Route::get('/governorates', [SearchController::class, 'searchGovernorates']);
+    });
+
+    // Enhanced governorate routes with articles pagination
+    Route::prefix('governorates')->group(function () {
+        Route::get('/', [GovernorateController::class, 'index']);
+        Route::get('{id}', [GovernorateController::class, 'show']);
+        Route::get('{id}/articles', [GovernorateController::class, 'articles']);
+    });
+
 
     // Researcher routes
     Route::middleware('role:researcher')->group(function () {

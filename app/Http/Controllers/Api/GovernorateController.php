@@ -56,10 +56,7 @@ class GovernorateController extends Controller
             return $this->errorResponse('Failed to retrieve governorate', 500);
         }
     }
-    /**
-     * Alternative implementation with more advanced visit tracking
-     * Uncomment this if you want to prevent multiple counts from same user
-     */
+
     /*
     public function showWithAdvancedTracking($id, Request $request)
     {
