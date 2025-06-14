@@ -55,12 +55,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{id}/rate', [ArticleController::class, 'rate']);
     });
 
-    // Community post routes
+    // Community post and comments routes
     Route::prefix('community-posts')->group(function () {
         Route::get('/', [CommunityPostController::class, 'index']);
         Route::post('/', [CommunityPostController::class, 'store']);
         Route::get('{id}', [CommunityPostController::class, 'show']);
+        Route::put('{id}', [CommunityPostController::class, 'update']);           // Edit post
+        Route::delete('{id}', [CommunityPostController::class, 'destroy']);       // Delete post
         Route::post('{id}/comment', [CommunityPostController::class, 'comment']);
+        Route::put('comments/{commentId}', [CommunityPostController::class, 'updateComment']);    // Edit comment
+        Route::delete('comments/{commentId}', [CommunityPostController::class, 'destroyComment']); // Delete comment
     });
 
     // Certified researcher routes

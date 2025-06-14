@@ -201,7 +201,7 @@ class SearchController extends Controller
                 $query->where('visit_count', '>=', $request->min_visits);
             }
 
-            // 📊 SORTING
+            //  SORTING
             $sortBy = $request->get('sort_by', 'name');
             $sortOrder = $request->get('sort_order', 'asc');
 
