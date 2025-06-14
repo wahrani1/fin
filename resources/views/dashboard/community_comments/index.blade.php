@@ -22,7 +22,7 @@
         @foreach($comments as $comment)
             <tr>
                 <td>{{ $comment->id }}</td>
-                <td>{{ $comment->post->title }}</td>
+                <td>{{ $comment->post->content }}</td>
                 <td>{{ $comment->user->name }}</td>
                 <td>{{ Str::limit($comment->content, 50) }}</td>
                 <td>
