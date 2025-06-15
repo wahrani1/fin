@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -11,14 +12,69 @@ use Illuminate\Support\Facades\Storage;
 
 class CommunityPostController extends Controller
 {
-    public function index(): \Illuminate\Http\JsonResponse
+    /**
+     * Get all community posts with comments in descending order
+     */
+    public function index(Request $request)
     {
-        return response()->json(
-            CommunityPost::with(['user', 'images', 'comments.user'])->paginate(15)
-        );
+        $perPage = min($request->get('per_page', 15), 50);
+
+        $posts = CommunityPost::with([
+            'user:id,name,email',
+            'images',
+            'comments' => function ($query) {
+                $query->with('user:id,name,email')
+                    ->orderBy('created_at', 'desc'); // Comments in descending order
+            }
+        ])
+            ->withCount('comments')
+            ->orderBy('created_at', 'desc') // Posts in descending order
+            ->paginate($perPage);
+
+        return response()->json([
+            'posts' => $posts->items(),
+            'pagination' => [
+                'current_page' => $posts->currentPage(),
+                'last_page' => $posts->lastPage(),
+                'per_page' => $posts->perPage(),
+                'total' => $posts->total(),
+                'from' => $posts->firstItem(),
+                'to' => $posts->lastItem(),
+            ],
+            'total_posts' => $posts->total()
+        ]);
     }
 
-    public function store(Request $request): \Illuminate\Http\JsonResponse
+    /**
+     * Get a specific post with comments in descending order
+     */
+    public function show($id)
+    {
+        $post = CommunityPost::with([
+            'user:id,name,email',
+            'images'
+        ])
+            ->withCount('comments')
+            ->findOrFail($id);
+
+        // Get comments separately with explicit ordering
+        $comments = CommunityPostComment::where('community_post_id', $id)
+            ->with('user:id,name,email')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Add comments to post
+        $post->comments = $comments;
+
+        return response()->json([
+            'post' => $post
+        ]);
+    }
+
+    /**
+     * Store a new community post
+     */
+    public function store(Request $request)
     {
         $request->validate([
             'content' => ['required', 'string', 'min:10'],
@@ -42,17 +98,13 @@ class CommunityPostController extends Controller
 
         return response()->json([
             'message' => 'Post created successfully',
-            'post' => $post->load(['images', 'user'])
+            'post' => $post->load(['images', 'user:id,name,email'])
         ], 201);
     }
 
-    public function show($id): \Illuminate\Http\JsonResponse
-    {
-        return response()->json(
-            CommunityPost::with(['user', 'images', 'comments.user'])->findOrFail($id)
-        );
-    }
-    // Update/Edit Post
+    /**
+     * Update/Edit Post
+     */
     public function update(Request $request, $id)
     {
         $post = CommunityPost::findOrFail($id);
@@ -84,68 +136,18 @@ class CommunityPostController extends Controller
 
         return response()->json([
             'message' => 'Post updated successfully',
-            'post' => $post->load(['images', 'user'])
+            'post' => $post->load(['images', 'user:id,name,email'])
         ]);
     }
 
-
-    public function comment(Request $request, $id): \Illuminate\Http\JsonResponse
-    {
-        $request->validate([
-            'content' => ['required', 'string', 'min:3']
-        ]);
-
-        CommunityPostComment::create([
-            'community_post_id' => $id,
-            'user_id' => Auth::id(),
-            'content' => $request->input('content')
-        ]);
-
-        return response()->json(['message' => 'Comment added successfully'], 201);
-    }
-
-    // Update Comment
-    public function updateComment(Request $request, $commentId)
-    {
-        $comment = CommunityPostComment::findOrFail($commentId);
-
-        if ($comment->user_id !== Auth::id()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $request->validate([
-            'content' => ['required', 'string', 'min:3']
-        ]);
-
-        $comment->update([
-            'content' => $request->input('content')
-        ]);
-
-        return response()->json([
-            'message' => 'Comment updated successfully',
-            'comment' => $comment->load('user')
-        ]);
-    }
-
-// Delete Comment
-    public function destroyComment($commentId): \Illuminate\Http\JsonResponse
-    {
-        $comment = CommunityPostComment::findOrFail($commentId);
-
-        if ($comment->user_id !== Auth::id()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $comment->delete();
-
-        return response()->json(['message' => 'Comment deleted successfully']);
-    }
-
-// Delete Post
-    public function destroy($id): \Illuminate\Http\JsonResponse
+    /**
+     * Delete Post
+     */
+    public function destroy($id)
     {
         $post = CommunityPost::findOrFail($id);
 
+        // Check if user owns the post
         if ($post->user_id !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -160,5 +162,69 @@ class CommunityPostController extends Controller
         return response()->json(['message' => 'Post deleted successfully']);
     }
 
+    /**
+     * Add comment to a post
+     */
+    public function comment(Request $request, $id)
+    {
+        $request->validate([
+            'content' => ['required', 'string', 'min:3']
+        ]);
 
+        $comment = CommunityPostComment::create([
+            'community_post_id' => $id,
+            'user_id' => Auth::id(),
+            'content' => $request->input('content')
+        ]);
+
+        return response()->json([
+            'message' => 'Comment added successfully',
+            'comment' => $comment->load('user:id,name,email')
+        ], 201);
+    }
+
+    /**
+     * Update/Edit Comment
+     */
+    public function updateComment(Request $request, $commentId)
+    {
+        $comment = CommunityPostComment::findOrFail($commentId);
+
+        // Check if user owns the comment
+        if ($comment->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'content' => ['required', 'string', 'min:3']
+        ]);
+
+        $comment->update([
+            'content' => $request->input('content')
+        ]);
+
+        return response()->json([
+            'message' => 'Comment updated successfully',
+            'comment' => $comment->load('user:id,name,email')
+        ]);
+    }
+
+    /**
+     * Delete Comment
+     */
+    public function destroyComment($commentId)
+    {
+        $comment = CommunityPostComment::findOrFail($commentId);
+
+        // Check if user owns the comment
+        if ($comment->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $comment->delete();
+
+        return response()->json(['message' => 'Comment deleted successfully']);
+    }
 }
+
+?>

@@ -26,9 +26,17 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('dashboard/comments/{id}', [ArticleCommentController::class, 'destroy'])->name('comments.destroy');
 
     // Ratings Management
-    Route::get('dashboard/ratings', [ArticleRatingController::class, 'index'])->name('ratings.index');
-    Route::post('dashboard/ratings/{id}/approve', [ArticleRatingController::class, 'approve'])->name('ratings.approve');
-    Route::delete('dashboard/ratings/{id}', [ArticleRatingController::class, 'destroy'])->name('ratings.destroy');
+
+    Route::prefix('dashboard/ratings')->name('ratings.')->group(function () {
+        Route::get('/', [ArticleRatingController::class, 'index'])->name('index');
+        Route::get('/statistics', [ArticleRatingController::class, 'statistics'])->name('statistics');
+        Route::get('/{id}', [ArticleRatingController::class, 'show'])->name('show');
+        Route::post('/{id}/approve', [ArticleRatingController::class, 'approve'])->name('approve');
+        Route::delete('/{id}', [ArticleRatingController::class, 'destroy'])->name('destroy');
+        Route::post('/bulk-approve', [ArticleRatingController::class, 'bulkApprove'])->name('bulk-approve');
+        Route::post('/bulk-delete', [ArticleRatingController::class, 'bulkDelete'])->name('bulk-delete');
+    });
+
 
     // Community Posts Management
     Route::get('dashboard/community-posts', [CommunityPostController::class, 'index'])->name('community_posts.index');

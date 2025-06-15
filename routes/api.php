@@ -48,11 +48,17 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Article routes
+// Article routes (UPDATE THIS SECTION)
     Route::prefix('articles')->group(function () {
         Route::get('/', [ArticleController::class, 'index']);
         Route::get('{id}', [ArticleController::class, 'show']);
         Route::post('{id}/comment', [ArticleController::class, 'comment']);
-        Route::post('{id}/rate', [ArticleController::class, 'rate']);
+        Route::get('{id}/ratings', [ArticleController::class, 'getArticleRatings']);     // Anyone can view ratings
+
+        // Rating routes - restricted to researchers and admins only
+        Route::post('{id}/rate', [ArticleController::class, 'rate']);                   // Rate article
+        Route::get('{id}/my-rating', [ArticleController::class, 'getUserRating']);      // Get user's rating
+        Route::delete('{id}/my-rating', [ArticleController::class, 'deleteRating']);    // Delete user's rating
     });
 
     // Community post and comments routes
