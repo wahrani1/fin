@@ -6,6 +6,10 @@ use App\Models\Article;
 use App\Models\ArticleImage;
 use App\Models\Era;
 use App\Models\Governorate;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +19,7 @@ class ArticleController extends Controller
     /**
      * Display a listing of articles.
      */
-    public function index()
+    public function index(): Factory|View|Application
     {
         $articles = Article::with(['era', 'governorate'])->paginate(15);
         return view('dashboard.articles.index', compact('articles'));
@@ -24,7 +28,7 @@ class ArticleController extends Controller
     /**
      * Show the form for creating a new article.
      */
-    public function create()
+    public function create(): Factory|View|Application
     {
         $eras = Era::all();
         $governorates = Governorate::all();
@@ -34,31 +38,8 @@ class ArticleController extends Controller
     /**
      * Store a newly created article in storage.
      */
-//    public function store(Request $request)
-//    {
-//        $request->validate(Article::rules());
-//
-//        $data = $request->except('images', 'user_id');
-//        // Ensure user_id is set if authenticated
-//        if ($request->user()) {
-//            $data->user_id = Auth::id();
-//        }
-//        $article = Article::create($data);
-//
-//        if ($request->hasFile('images')) {
-//            foreach ($request->file('images') as $image) {
-//                $path = $image->store('articles', 'public');
-//                ArticleImage::create([
-//                    'article_id' => $article->id,
-//                    'image_path' => $path,
-//                ]);
-//            }
-//        }
-//
-//        return redirect()->route('articles.index')->with('success', 'Article created successfully');
-//    }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $request->validate(Article::rules());
 
@@ -97,7 +78,7 @@ class ArticleController extends Controller
     /**
      * Show the form for editing the specified article.
      */
-    public function edit($id)
+    public function edit($id): Factory|View|Application
     {
         $article = Article::with('images')->findOrFail($id);
         $eras = Era::all();
@@ -108,7 +89,7 @@ class ArticleController extends Controller
     /**
      * Update the specified article in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $id): RedirectResponse
     {
         $request->validate(Article::rules());
 
@@ -139,7 +120,7 @@ class ArticleController extends Controller
     /**
      * Remove the specified article from storage.
      */
-    public function destroy($id)
+    public function destroy($id): RedirectResponse
     {
         $article = Article::findOrFail($id);
         foreach ($article->images as $image) {
@@ -152,7 +133,7 @@ class ArticleController extends Controller
     /**
      * Delete a specific image associated with an article.
      */
-    public function deleteImage($imageId)
+    public function deleteImage($imageId): RedirectResponse
     {
         $image = ArticleImage::findOrFail($imageId);
         Storage::disk('public')->delete($image->image_path);
@@ -160,4 +141,4 @@ class ArticleController extends Controller
         return back()->with('success', 'Image deleted successfully');
     }
 }
-?>
+
