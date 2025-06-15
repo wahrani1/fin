@@ -48,7 +48,7 @@ class CommunityPostController extends Controller
     /**
      * Get a specific post with comments in descending order
      */
-    public function show($id)
+    public function show($id): \Illuminate\Http\JsonResponse
     {
         $post = CommunityPost::with([
             'user:id,name,email',

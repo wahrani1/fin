@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class CommunityPostCommentController extends Controller
 {
-    public function index()
+    public function index(): \Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Contracts\Foundation\Application
     {
         $comments = CommunityPostComment::with(['post', 'user'])->paginate(15);
         return view('dashboard.community_comments.index', compact('comments'));
@@ -19,4 +19,3 @@ class CommunityPostCommentController extends Controller
         return back()->with('success', 'Comment deleted successfully');
     }
 }
-?>
