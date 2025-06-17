@@ -8,6 +8,7 @@ use App\Http\Resources\GovernorateResource;
 use App\Models\Article;
 use App\Models\Governorate;
 use App\Models\Era;
+use App\Models\CommunityPost;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 

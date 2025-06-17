@@ -1,3 +1,4 @@
+@php use App\Models\Article; @endphp
 @extends('layouts.dashboard')
 @section('title', 'Edit Article')
 @section('breadcrumb')
@@ -21,7 +22,8 @@
         <div class="d-flex flex-wrap">
             @foreach($article->images as $image)
                 <div class="m-2 position-relative">
-                    <img src="{{ asset('storage/' . $image->image_path) }}" alt="" height="100" class="img-thumbnail" style="width: 300px; height: 300px ">
+                    <img src="{{ asset('storage/' . $image->image_path) }}" alt="" height="100" class="img-thumbnail"
+                         style="width: 300px; height: 300px ">
                     <!-- SEPARATE FORM FOR IMAGE DELETION -->
                     <form action="{{ route('articles.images.destroy', $image->id) }}" method="POST"
                           class="position-absolute top-0 end-0"
@@ -64,7 +66,7 @@
             <label for="category" class="form-label">Category</label>
             <select class="form-control @error('category') is-invalid @enderror" id="category" name="category" required>
                 <option value="">Select Category</option>
-                @foreach(\App\Models\Article::CATEGORIES as $category)
+                @foreach(Article::CATEGORIES as $category)
                     <option
                         value="{{ $category }}" @selected(old('category', $article->category) == $category)>{{ $category }}</option>
                 @endforeach
