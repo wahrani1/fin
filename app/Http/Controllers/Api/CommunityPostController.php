@@ -23,7 +23,7 @@ class CommunityPostController extends Controller
             'user:id,name,email,avatar',
             'images',
             'comments' => function ($query) {
-                $query->with('user:id,name,email')
+                $query->with('user:id,name,email,avatar')
                     ->orderBy('created_at', 'desc'); // Comments in descending order
             }
         ])
