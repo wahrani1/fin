@@ -136,7 +136,7 @@ class CommunityPostController extends Controller
 
         return response()->json([
             'message' => 'Post updated successfully',
-            'post' => $post->load(['images', 'user:id,name,email'])
+            'post' => $post->load(['images', 'user:id,name,email,avatar'])
         ]);
     }
 
@@ -179,7 +179,7 @@ class CommunityPostController extends Controller
 
         return response()->json([
             'message' => 'Comment added successfully',
-            'comment' => $comment->load('user:id,name,email')
+            'comment' => $comment->load('user:id,name,email,avatar')
         ], 201);
     }
 
@@ -205,7 +205,7 @@ class CommunityPostController extends Controller
 
         return response()->json([
             'message' => 'Comment updated successfully',
-            'comment' => $comment->load('user:id,name,email')
+            'comment' => $comment->load('user:id,name,email,avatar')
         ]);
     }
 
