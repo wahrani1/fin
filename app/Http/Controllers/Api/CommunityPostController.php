@@ -20,7 +20,7 @@ class CommunityPostController extends Controller
         $perPage = min($request->get('per_page', 15), 50);
 
         $posts = CommunityPost::with([
-            'user:id,name,email',
+            'user:id,name,email,avatar',
             'images',
             'comments' => function ($query) {
                 $query->with('user:id,name,email')
@@ -51,7 +51,7 @@ class CommunityPostController extends Controller
     public function show($id): \Illuminate\Http\JsonResponse
     {
         $post = CommunityPost::with([
-            'user:id,name,email',
+            'user:id,name,email,avatar',
             'images'
         ])
             ->withCount('comments')
@@ -59,7 +59,7 @@ class CommunityPostController extends Controller
 
         // Get comments separately with explicit ordering
         $comments = CommunityPostComment::where('community_post_id', $id)
-            ->with('user:id,name,email')
+            ->with('user:id,name,email,avatar')
             ->orderBy('created_at', 'desc')
             ->get();
 
