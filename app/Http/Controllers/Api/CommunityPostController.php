@@ -98,7 +98,7 @@ class CommunityPostController extends Controller
 
         return response()->json([
             'message' => 'Post created successfully',
-            'post' => $post->load(['images', 'user:id,name,email'])
+            'post' => $post->load(['images', 'user:id,name,email,avatar'])
         ], 201);
     }
 
